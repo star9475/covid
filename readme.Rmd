@@ -1,0 +1,19 @@
+---
+title: "Covid App - Readme"
+author: "Josh Starkey"
+date: "April 19, 2020"
+output: html_document
+---
+
+#### 2016 Seattle Mariners Visualization 
+
+This Shiny App is for visualizing the Covid outbeak in the United States.  The data is courtesy the Covid Project at  <https://covidtracker.com>.  There are state views and country views.
+
+The units that can be selected to be plotted come from the data that is tracked by covidtracker.com.  
+
+I added "percent_pos" - this is the percent of tests that are positive and a good indicator of progress.
+
+The facet plot can take a lot of time to load.  Be patient.
+
+- Code is located here : <https://github.com/star9475/covid>
+- Questions, comments, criticism: <star9475@hotmail.com>

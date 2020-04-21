@@ -1,12 +1,3 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
 library(shiny)
 library(readr)
 library(dplyr)
@@ -14,92 +5,129 @@ library(tidyr)
 library(lubridate)
 library(usmap)
 library(ggplot2)
+library(ggrepel)
 
 options(scipen=999)
 
-source('covid.R')
+source('covid.r')
 
 states <- data_all %>%
-  arrange(match(state, c("WA", "ID")), state) %>%
+  arrange(match(state, c("WA", "ID", "NY", "LA")), state) %>%
   select (state)
+
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
    
    # Application title
-  #titlePanel(h1("COVID-19 Plots"),"Data courtesy of https://covidtracking.com"),
-  h1("COVID-19 Plots"),
-  
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-     sidebarPanel(
-    
-       selectInput("select_state", label = "Select State", 
-#                   choices = data_all$state,
-                   choices = states$state,
-                   selected = 1),
-       # selectInput("select_state", label = "Select State", 
-       #             choices = data_all$state, 
-       #             selected = NULL),
-       hr(),
-       radioButtons("plot_type", "US Plot type:",
-                    c("Normal" = "norm",
-                      "Facet" = "facet") ),
-       hr(),
-       "Josh Starkey : @starkeeey",
-       hr(),
-       "Data courtesy of https://covidtracking.com"
-       
+   titlePanel(h3("COVID-19 Plots"),"Data from"),
+   br(),
+   #"Josh Starkey : @starkeeey",
+   "Data courtesy of https://covidtracking.com", 
+   br(),
+   br(),
+   tabsetPanel(
+     
+     tabPanel("States", fluid = TRUE,
+              sidebarLayout(
+                sidebarPanel(
+                  
+                  selectInput("select_state", label = "Select State", 
+                              choices = states$state,
+                              selected = 1),
+                  
+                  checkboxGroupInput("select_cum", "Cumulative Data (top chart)", 
+                                     choiceNames = c(cum_data),
+                                     choiceValues = c(cum_data),
+                                     selected = cum_data[[1]][1], inline = TRUE),
+                  checkboxGroupInput("select_daily", "Daily Increases (bottom chart)", 
+                                     choiceNames = c(daily_data),
+                                     choiceValues = c(daily_data),
+                                     selected = daily_data[[1]][1],inline = TRUE),
+                  radioButtons("select_unit2", "Report By Days or Weeks:",
+                               c("Days" = "days",
+                                 "Weeks" = "weeks")),
+                  "Note: Last week may not be full 7 days.",
+                  br(), br(), "If a measurement isn't being shown on the graph it's due to that state not reporting it."
+                  
+                ),
+                mainPanel(
+                  plotOutput("cumPlot"),
+                  hr(),
+                  plotOutput("dailyPlot")
+                )
+              )
      ),
-      
-      # Show a plot of the generated distribution
-      mainPanel(
-        
-        tabsetPanel(type = "tabs",
-                    tabPanel("States", plotOutput("barPlot") ),
+     tabPanel("US", fluid = TRUE,
+              sidebarLayout(
+                sidebarPanel(
 
-                    tabPanel("US", plotOutput("usPlot") )
-                    
-#                    tabPanel("US Facet", plotOutput("usFacet"))
-        )
-        
-         
-
-      )
+                  selectInput("select_state2", label = "Select State", 
+                              choices = states$state,
+                             selected = "WA",
+                             multiple = TRUE),
+                  radioButtons("select_chart", "Chart Type:",
+                               c("Line" = "line",
+                                 "Facet (All States)" = "facet")),
+                  radioButtons("select_unit", "US Scaled to Population:",
+                               c("Normal" = "norm",
+                                 "Scaled" = "scale"))
+                ),
+                mainPanel(fluidRow(
+                  plotOutput("usPlot")   
+                )
+                )
+              )
+     )
    )
+
+     
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-   
-   output$barPlot <- renderPlot({
-     st <- input$select_state
-     #cat(st)
-     if (st == "") {cat("YES")}
-     if (st == "") {st == "WA"}
-     p3 <- get_state_plot_ppd_npd(data_all, st)
-     p3
-   })
-   
-   hr()
+  
+  output$cumPlot <- renderPlot({
+    st <- input$select_state
+    features <- input$select_cum
+    unit <- input$select_unit2
+    
+    if (st == "") {st == "WA"}
+    p1 <- get_state_plot(data_all, st, features, type = "line", unit)
+    p1
+  })
+  
+  hr()
+  
+  output$dailyPlot <- renderPlot({
+    st <- input$select_state
+    features <- input$select_daily
+    unit <- input$select_unit2
+    
+    if (st == "") {st == "WA"}
+    p2 <- get_state_plot(data_all, st, features, type = "bar", unit)
+    p2
+  })
+  
+  output$usPlot <- renderPlot({
+    
+    unit <- input$select_unit
+    chart <- input$select_chart
+    st <- input$select_state2
+    
+    if (st == "") {st == "WA"}
 
-   output$usPlot <- renderPlot({
-     pt <- input$plot_type
-      switch(pt,
-             "facet" = get_us_facet(data_all),
-             "norm" = get_us_linechart_scaled(data_all)
-             )
-      
-     
-     #p7 <- get_us_linechart_scaled(data_all)    
-     #p7
-   })
-#   output$usFacet <- renderPlot({
-#     p4 <- get_us_facet(data_all)
-#     p4
-#   })
+        if (chart == "line") {
+      p3 <- get_us_line_plot(data_all, type = unit, st) 
+    }
+    else p3 <- get_us_facet_plot(data_all)
+    p3
+  })
+  #   output$usFacet <- renderPlot({
+  #     p4 <- get_us_facet(data_all)
+  #     p4
+  #   })
 }
-
 # Run the application 
 shinyApp(ui = ui, server = server)
 
