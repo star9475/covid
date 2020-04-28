@@ -159,7 +159,6 @@ get_us_line_plot <- function(d, type = "norm", selections = "WA") {
     d<-  mutate(d, unit = pos_test_per)
   }
   
-  #cat(selections)
 #  data_to_highlight <- d %>% group_by(state) %>% summarise(tot = max(unit)) %>% arrange(desc(tot)) %>% head(8)
   data_to_highlight <- d %>% 
     group_by(state) %>% 

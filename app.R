@@ -47,7 +47,7 @@ ui <- fluidPage(
                   radioButtons("select_unit2", "Report By Days or Weeks:",
                                c("Days" = "days",
                                  "Weeks" = "weeks")),
-                  "Note: Last week may not be full 7 days.",
+                  "Note: Last week may not be a full 7 days.",
                   br(), br(), "If a measurement isn't being shown on the graph it's due to that state not reporting it."
                   
                 ),
