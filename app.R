@@ -18,70 +18,70 @@ states <- data_all %>%
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-  
-  # Application title
-  titlePanel(h3("COVID-19 Plots"),"Data from"),
-  br(),
-  #"Josh Starkey : @starkeeey",
-  "Data courtesy of https://covidtracking.com", 
-  br(),
-  br(),
-  tabsetPanel(
-    
-    tabPanel("States", fluid = TRUE,
-             sidebarLayout(
-               sidebarPanel(
-                 
-                 selectInput("select_state", label = "Select State", 
-                             choices = states$state,
-                             selected = 1),
-                 
-                 checkboxGroupInput("select_cum", "Cumulative Data (top chart)", 
-                                    choiceNames = c(cum_data),
-                                    choiceValues = c(cum_data),
-                                    selected = cum_data[[1]][1], inline = TRUE),
-                 checkboxGroupInput("select_daily", "Daily Increases (bottom chart)", 
-                                    choiceNames = c(daily_data),
-                                    choiceValues = c(daily_data),
-                                    selected = daily_data[[1]][1],inline = TRUE),
-                 radioButtons("select_unit2", "Report By Days or Weeks:",
-                              c("Days" = "days",
-                                "Weeks" = "weeks")),
-                 "Note: Last week may not be full 7 days.",
-                 br(), br(), "If a measurement isn't being shown on the graph it's due to that state not reporting it."
-                 
-               ),
-               mainPanel(
-                 plotOutput("cumPlot"),
-                 hr(),
-                 plotOutput("dailyPlot")
-               )
-             )
-    ),
-    tabPanel("US", fluid = TRUE,
-             sidebarLayout(
-               sidebarPanel(
-                 
-                 selectInput("select_state2", label = "Select State", 
-                             choices = states$state,
+   
+   # Application title
+   titlePanel(h3("COVID-19 Plots"),"Data from"),
+   br(),
+   #"Josh Starkey : @starkeeey",
+   "Data courtesy of https://covidtracking.com", 
+   br(),
+   br(),
+   tabsetPanel(
+     
+     tabPanel("States", fluid = TRUE,
+              sidebarLayout(
+                sidebarPanel(
+                  
+                  selectInput("select_state", label = "Select State", 
+                              choices = states$state,
+                              selected = 1),
+                  
+                  checkboxGroupInput("select_cum", "Cumulative Data (top chart)", 
+                                     choiceNames = c(cum_data),
+                                     choiceValues = c(cum_data),
+                                     selected = cum_data[[1]][1], inline = TRUE),
+                  checkboxGroupInput("select_daily", "Daily Increases (bottom chart)", 
+                                     choiceNames = c(daily_data),
+                                     choiceValues = c(daily_data),
+                                     selected = daily_data[[1]][1],inline = TRUE),
+                  radioButtons("select_unit2", "Report By Days or Weeks:",
+                               c("Days" = "days",
+                                 "Weeks" = "weeks")),
+                  "Note: Last week may not be full 7 days.",
+                  br(), br(), "If a measurement isn't being shown on the graph it's due to that state not reporting it."
+                  
+                ),
+                mainPanel(
+                  plotOutput("cumPlot"),
+                  hr(),
+                  plotOutput("dailyPlot")
+                )
+              )
+     ),
+     tabPanel("US", fluid = TRUE,
+              sidebarLayout(
+                sidebarPanel(
+
+                  selectInput("select_state2", label = "Select State", 
+                              choices = states$state,
                              selected = "WA",
                              multiple = TRUE),
-                 radioButtons("select_chart", "Chart Type:",
-                              c("Line" = "line",
-                                "Facet (All States)" = "facet")),
-                 radioButtons("select_unit", "US Scaled to Population:",
-                              c("Normal" = "norm",
-                                "Scaled" = "scale"))
-               ),
-               mainPanel(fluidRow(
-                 plotOutput("usPlot")   
-               )
-               )
-             )
-    )
-  )
-  
-  
+                  radioButtons("select_chart", "Chart Type:",
+                               c("Line" = "line",
+                                 "Facet (All States)" = "facet")),
+                  radioButtons("select_unit", "US Scaled to Population:",
+                               c("Normal" = "norm",
+                                 "Scaled" = "scale"))
+                ),
+                mainPanel(fluidRow(
+                  plotOutput("usPlot")   
+                )
+                )
+              )
+     )
+   )
+
+     
 )
 
 # Define server logic required to draw a histogram
@@ -116,8 +116,8 @@ server <- function(input, output) {
     st <- input$select_state2
     
     if (st == "") {st == "WA"}
-    
-    if (chart == "line") {
+
+        if (chart == "line") {
       p3 <- get_us_line_plot(data_all, type = unit, st) 
     }
     else p3 <- get_us_facet_plot(data_all)
@@ -130,3 +130,4 @@ server <- function(input, output) {
 }
 # Run the application 
 shinyApp(ui = ui, server = server)
+
