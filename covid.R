@@ -20,6 +20,12 @@ DEBUG = FALSE
 # US1019pop <- read.csv(temp)[,c(5,8:17)]
 # colnames(US1019pop) <- c("State", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019")
 
+get_days_in_last_week <- function(vector_of_dates) {
+  t <- data.frame(table(week(vector_of_dates)))
+  t[nrow(t),"Freq"]
+  
+}
+
 ##### Get the state Pop Data
 data_population <- usmap::statepop %>% 
   #  rownames_to_column() %>% 
@@ -39,6 +45,7 @@ data_all <- data %>%
          "onVentilator" = "onVentilatorCumulative") %>%
   mutate(date = ymd(date),
          dateChecked = as_date(dateChecked)) %>%
+  filter(date >= ymd(20200226)) %>%
   inner_join(data_population) %>%
   mutate(pos_test_per = positive / Population,
          percent_pos = positive / totalTestResults) %>%
@@ -71,83 +78,85 @@ cum_data <- c("positive",
 daily_data <- colnames(select(data_all,ends_with("inc")))
 
 get_state_plot <- function(d, st = "WA", selections, type = "line", unit = "weeks") {
-
-    data_to_plot <- data_all %>%
-      filter(state == st) %>%
-      select(date,  one_of(selections)) %>%
-      gather(test,results,2:length(.)) %>% 
-      group_by(test) %>% 
-      mutate(end_value = last(na.omit(results)) )%>%
-      mutate(end_label = ifelse(date == max(date), round(end_value,3), "" )) %>%
-#      mutate(end_label = ifelse(date == max(date), end_value, NA_character_ )) %>%
-      ungroup() 
- 
-    if (unit == "weeks") {     
-      data_to_plot <- data_to_plot %>%
-        group_by(date = week(date), test) %>%
-        group_split(date,test) %>% #Previously we had to do split(.$test) here
-        map_dfr(. %>%
-                  summarise(test = first(test), 
-                            date = first(date),
-                            results = if_else(stringr::str_detect(test,"per"),mean(results),sum(results)))) %>%
-        group_by(test) %>%
-        mutate(end_value = last(na.omit(results)),
-               end_label = ifelse(date == max(date), round(end_value,3), "" )) %>%
-        ungroup() %>%
-        mutate(date = date - min(date)) ##force week to start at 0
-      
-    }
+  
+  data_to_plot <- data_all %>%
+    filter(state == st) %>%
+    select(date,  one_of(selections)) %>%
+    gather(test,results,2:length(.)) %>% 
+    group_by(test) %>% 
+    mutate(end_value = last(na.omit(results)) )%>%
+    mutate(end_label = ifelse(date == max(date), round(end_value,3), "" )) %>%
+    #      mutate(end_label = ifelse(date == max(date), end_value, NA_character_ )) %>%
+    ungroup() 
+  
+  if (unit == "weeks") {     
+    data_to_plot <- data_to_plot %>%
+      group_by(date = week(date), test) %>%
+      group_split(date,test) %>% #Previously we had to do split(.$test) here
+      map_dfr(. %>%
+                summarise(test = first(test), 
+                          date = first(date),
+                          results = if_else(stringr::str_detect(test,"per"),mean(results),sum(results)))) %>%
+      group_by(test) %>%
+      mutate(end_value = last(na.omit(results)),
+             end_label = ifelse(date == max(date), 
+                                paste0(round(end_value,3)," *",get_days_in_last_week(data_to_plot$date)," days"), 
+                                "" )) %>%
+      ungroup() %>%
+      mutate(date = date - min(date)) ##force week to start at 0
     
-    ## Intial Plot based on type
-    if (type == "line") {
-      p <- ggplot(data = data_to_plot,
+  }
+  
+  ## Intial Plot based on type
+  if (type == "line") {
+    p <- ggplot(data = data_to_plot,
                 mapping = aes(x = date, y = results, color = test, label = end_label)) +
       geom_line(size = 1) +
       geom_point(size=3, shape=16, alpha = .6) +
-#      geom_text(aes(y = data_to_plot$end_label, label = data_to_plot$end_label))+
+      #      geom_text(aes(y = data_to_plot$end_label, label = data_to_plot$end_label))+
       geom_text_repel(
-          force=1,
-          point.padding=unit(1,'lines'),
-          direction='y',
-          nudge_x=0.1,
-          segment.size=0.2,
-          segment.color = "grey50"
-          #label = round(data_to_plot$end_label,2)
-        ) +
-        labs(title = paste0("COVID-19 Daily Data : ",st))
-    } else { #bar chart
-      p <- ggplot(data = data_to_plot,
-              mapping = aes(x = date, y = results,
-                            fill = test, label = end_label)) +
-        geom_bar(stat="identity",  position = "dodge") +
-        geom_text(aes(label=end_label), position=position_dodge(width=0.9), vjust=-0.25) +
-#        geom_text(aes(label = end_label, vjust=-0.5)) +
-        scale_y_continuous(limits=c(0,max(data_to_plot$results*1.2))) +
-        labs(title = paste0("COVID-19 Daily Data : ",st))
-      }
-
-    if (unit == "weeks") {
-      p <- p + scale_x_continuous(breaks = seq(0, max(data_to_plot$date), by = 1))
-    }
-    else { ## Scale is days
-      p <- p + scale_x_date(date_breaks = "1 week" , date_labels = "%b-%d") +
-        theme(axis.text.x = element_text(vjust = 0.5, angle = 90))
-    }
-
-
-    p <- p  +
-      scale_color_brewer(palette="Set1") +
-      scale_fill_brewer(palette="Set1") +
-#      scale_fill_brewer(palette="Dark2") +
-#      scale_color_brewer(palette="Dark2") +
-
-      theme_minimal() +
-      labs(x = "Date", y = "Reported Events",
-           subtitle = paste0("Data Updated: ",format(max(data_all$date),'%b %d, %Y'))) +
-      theme(legend.title = element_blank(),
-            panel.grid.minor = element_blank(),
-            legend.position = "top")
-
+        force=1,
+        point.padding=unit(1,'lines'),
+        direction='y',
+        nudge_x=0.1,
+        segment.size=0.2,
+        segment.color = "grey50"
+        #label = round(data_to_plot$end_label,2)
+      ) +
+      labs(title = paste0("COVID-19 Daily Data : ",st))
+  } else { #bar chart
+    p <- ggplot(data = data_to_plot,
+                mapping = aes(x = date, y = results,
+                              fill = test, label = end_label)) +
+      geom_bar(stat="identity",  position = "dodge") +
+      geom_text(aes(label=end_label), position=position_dodge(width=0.9), vjust=-0.25) +
+      #        geom_text(aes(label = end_label, vjust=-0.5)) +
+      scale_y_continuous(limits=c(0,max(data_to_plot$results*1.2))) +
+      labs(title = paste0("COVID-19 Daily Data : ",st))
+  }
+  
+  if (unit == "weeks") {
+    p <- p + scale_x_continuous(breaks = seq(0, max(data_to_plot$date), by = 1))
+  }
+  else { ## Scale is days
+    p <- p + scale_x_date(date_breaks = "1 week" , date_labels = "%b-%d") +
+      theme(axis.text.x = element_text(vjust = 0.5, angle = 90))
+  }
+  
+  
+  p <- p  +
+    scale_color_brewer(palette="Set1") +
+    scale_fill_brewer(palette="Set1") +
+    #      scale_fill_brewer(palette="Dark2") +
+    #      scale_color_brewer(palette="Dark2") +
+    
+    theme_minimal() +
+    labs(x = "Date", y = "Reported Events",
+         subtitle = paste0("Data Updated: ",format(max(data_all$date),'%b %d, %Y'))) +
+    theme(legend.title = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.position = "top")
+  
 }
 
 get_us_line_plot <- function(d, type = "norm", selections = "WA") {
@@ -160,7 +169,7 @@ get_us_line_plot <- function(d, type = "norm", selections = "WA") {
   }
   
   #cat(selections)
-#  data_to_highlight <- d %>% group_by(state) %>% summarise(tot = max(unit)) %>% arrange(desc(tot)) %>% head(8)
+  #  data_to_highlight <- d %>% group_by(state) %>% summarise(tot = max(unit)) %>% arrange(desc(tot)) %>% head(8)
   data_to_highlight <- d %>% 
     group_by(state) %>% 
     summarise(tot = max(unit)) %>% 
@@ -202,8 +211,8 @@ get_us_line_plot <- function(d, type = "norm", selections = "WA") {
                    group = state,
                    color = state),
                size=3, shape=16, alpha = .6) +
-#    size = 2) +
-  geom_line(data = data_gray, 
+    #    size = 2) +
+    geom_line(data = data_gray, 
               aes(x=days_elapsed, y=unit, group=state), 
               colour = alpha("grey", 0.7) ,
               size = 0.5 ) +
@@ -215,7 +224,7 @@ get_us_line_plot <- function(d, type = "norm", selections = "WA") {
                      point.padding = 0.1,
                      segment.size = 0.2, size=3) +
     
-#    scale_color_brewer(palette="Set1") +
+    #    scale_color_brewer(palette="Set1") +
     scale_color_brewer(palette="Dark2") +
     theme_minimal() +
     theme(legend.position = "none") +
@@ -248,12 +257,12 @@ get_us_facet_plot <- function(data) {
       title = "Confirmed COVID-19 cases per day",
       subtitle = paste0("Data Updated: ",max(data_all$dateChecked)),
       caption = "Data: https://covidtracking.com/ | Plot: @starkeeey")   
-  }
+}
 
 if (RUNCHARTS) {
   
-  p1 <- get_state_plot(data_all, st = "WA", selections = c("positive_inc", "total_inc"), type = "bar")
-  p2 <- get_state_plot(data_all, st = "ID", selections = c("positive_inc", "total_inc"), type = "bar")
+  p1 <- get_state_plot(data_all, st = "WA", selections = c("positive"), type = "bar", unit = "weeks")
+  p2 <- get_state_plot(data_all, st = "ID", selections = c("positive"), type = "bar", unit = "weeks")
   p3 <- get_us_line_plot(data_all, "scale")
   p4 <- get_us_facet_plot(data_all)
   ggsave(paste0("plots/wa_",lubridate::today(),".png"),
